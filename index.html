@@ -153,6 +153,29 @@
     const keys = {};
     window.addEventListener("keydown", e => keys[e.key] = true);
     window.addEventListener("keyup", e => keys[e.key] = false);
+if (
+  typeof DeviceOrientationEvent !== 'undefined' &&
+  typeof DeviceOrientationEvent.requestPermission === 'function'
+) {
+  // iOS 13+
+  DeviceOrientationEvent.requestPermission()
+    .then(permissionState => {
+      if (permissionState === 'granted') {
+        window.addEventListener("deviceorientation", handleOrientation);
+      }
+    })
+    .catch(console.error);
+} else {
+  // Android / десктоп
+  window.addEventListener("deviceorientation", handleOrientation);
+}
+
+function handleOrientation(event) {
+  let tilt = event.gamma;
+  if (tilt !== null && gameStarted && !gameOver) {
+    player.vx = tilt / 3;
+  }
+}
 
     window.addEventListener("deviceorientation", function (event) {
       let tilt = event.gamma;
