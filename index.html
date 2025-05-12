@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FLOCKERZ</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .overlay-button {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      padding: 12px 24px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid white;
+      color: white;
+      cursor: pointer;
+      z-index: 2;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+
+    #startBtn { top: 45%; }
+    #restartBtn { top: 55%; display: none; }
+    #buyBtn { top: 65%; display: none; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <button id="startBtn" class="overlay-button">Start</button>
+  <button id="restartBtn" class="overlay-button">Restart</button>
+  <button id="buyBtn" class="overlay-button">Buy FLOCK</button>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Base logic dimensions
+    const baseWidth = 400;
+    const baseHeight = 600;
+
+    // Set canvas to fill screen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Scale drawing to maintain logic coordinates
+    const scaleX = canvas.width / baseWidth;
+    const scaleY = canvas.height / baseHeight;
+    ctx.scale(scaleX, scaleY);
+
+    const width = baseWidth;
+    const height = baseHeight;
+
+    const heroImg = new Image();
+    heroImg.src = "hero.gif";
+
+    const platformImg = new Image();
+    platformImg.src = "platform.png";
+
+    const startPlatformImg = new Image();
+    startPlatformImg.src = "start_platform.png";
+
+    const backgroundImg = new Image();
+    backgroundImg.src = "background.png";
+
+    const logoImg = new Image();
+    logoImg.src = "logo.png";
+
+    const logo = {
+      x: width - 130,
+      y: 10,
+      width: 120,
+      height: 50,
+      url: "https://example.com"
+    };
+
+    let gameStarted = false;
+    let gameOver = false;
+
+    const player = {
+      x: 200,
+      y: 500,
+      width: 50,
+      height: 60,
+      vx: 0,
+      vy: 0,
+      gravity: 0.5,
+      jumpForce: -10
+    };
+
+    let platforms = [];
+    let scrollOffset = 0;
+    let score = 0;
+    let jumpCount = 0;
+
+    function resetGame() {
+      player.x = 200;
+      player.y = 500;
+      player.vx = 0;
+      player.vy = 0;
+      scrollOffset = 0;
+      score = 0;
+      jumpCount = 0;
+      gameOver = false;
+      platforms = [];
+
+      platforms.push({
+        x: 0,
+        y: height - 20,
+        width: width,
+        height: 20,
+        dx: 0,
+        dir: 0,
+        solid: true,
+        isStart: true
+      });
+
+      let y = height - 80;
+      let platformCount = 1;
+      while (y > 0) {
+        platforms.push(createPlatform(y, platformCount));
+        y -= 80;
+        platformCount++;
+      }
+    }
+
+    function createPlatform(y, index) {
+      let baseWidth = 60;
+      if (index % 20 === 0) baseWidth *= 3;
+      else if (index % 10 === 0) baseWidth *= 2;
+
+      return {
+        x: Math.random() * (width - baseWidth),
+        y: y,
+        width: baseWidth,
+        height: 15,
+        dx: Math.random() < 0.5 ? 1 : 0,
+        dir: Math.random() < 0.5 ? 1 : -1
+      };
+    }
+
+    const keys = {};
+    window.addEventListener("keydown", e => keys[e.key] = true);
+    window.addEventListener("keyup", e => keys[e.key] = false);
+
+    window.addEventListener("deviceorientation", function (event) {
+      let tilt = event.gamma;
+      if (tilt !== null && gameStarted && !gameOver) {
+        player.vx = tilt / 3;
+      }
+    });
+
+    function update() {
+      if (!gameStarted || gameOver) return;
+
+      if (keys["ArrowLeft"]) player.vx = -3;
+      if (keys["ArrowRight"]) player.vx = 3;
+
+      player.vx *= 0.8;
+      player.x += player.vx;
+      player.vy += player.gravity;
+      player.y += player.vy;
+
+      if (player.x + player.width < 0) player.x = width;
+      if (player.x > width) player.x = -player.width;
+
+      platforms.forEach(p => {
+        if (p.dx) {
+          p.x += p.dir;
+          if (p.x <= 0 || p.x + p.width >= width) p.dir *= -1;
+        }
+
+        if (
+          player.vy > 0 &&
+          player.x + player.width > p.x &&
+          player.x < p.x + p.width &&
+          player.y + player.height > p.y &&
+          player.y + player.height < p.y + p.height + 10
+        ) {
+          jumpCount++;
+          player.vy = (jumpCount % 3 === 0) ? player.jumpForce * 1.5 : player.jumpForce;
+        }
+      });
+
+      if (player.y < height / 2) {
+        let dy = height / 2 - player.y;
+        player.y = height / 2;
+        scrollOffset += dy;
+        platforms.forEach(p => p.y += dy);
+      }
+
+      platforms.forEach(p => {
+        if (p.y > height && !p.solid) {
+          Object.assign(p, createPlatform(0, Math.floor(scrollOffset / 80) + 1));
+        }
+      });
+
+      score = Math.floor((scrollOffset + 100) / 10);
+
+      if (player.y > height) {
+        gameOver = true;
+        document.getElementById("restartBtn").style.display = "block";
+        document.getElementById("buyBtn").style.display = "block";
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      if (backgroundImg.complete) {
+        const offsetY = scrollOffset % height;
+        ctx.drawImage(backgroundImg, 0, -offsetY, width, height);
+        ctx.drawImage(backgroundImg, 0, -offsetY + height, width, height);
+      }
+
+      platforms.forEach(p => {
+        if (p.isStart && startPlatformImg.complete) {
+          ctx.drawImage(startPlatformImg, p.x, p.y, p.width, p.height);
+        } else if (platformImg.complete) {
+          ctx.drawImage(platformImg, p.x, p.y, p.width, p.height);
+        }
+      });
+
+      ctx.drawImage(heroImg, player.x, player.y, player.width, player.height);
+
+      ctx.fillStyle = "white";
+      ctx.font = "20px Arial";
+      ctx.fillText("$" + score, 10, 30);
+
+      if (logoImg.complete) {
+        ctx.drawImage(logoImg, logo.x, logo.y, logo.width, logo.height);
+      }
+
+      if (!gameStarted) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = "white";
+        ctx.font = "28px Arial";
+        ctx.fillText("Press START", 100, height / 2);
+      }
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0, height / 2 - 50, width, 100);
+        ctx.fillStyle = "white";
+        ctx.font = "36px Arial";
+        ctx.fillText("GAME OVER", width / 2 - 100, height / 2);
+        ctx.font = "20px Arial";
+        ctx.fillText("$" + score, width / 2 - 40, height / 2 + 30);
+      }
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.getElementById("startBtn").onclick = () => {
+      resetGame();
+      gameStarted = true;
+      document.getElementById("startBtn").style.display = "none";
+    };
+
+    document.getElementById("restartBtn").onclick = () => {
+      resetGame();
+      gameStarted = true;
+      document.getElementById("restartBtn").style.display = "none";
+      document.getElementById("buyBtn").style.display = "none";
+    };
+
+    document.getElementById("buyBtn").onclick = () => {
+      window.open("https://app.uniswap.org/explore/tokens/ethereum/0xb33d999469a7e6b9ebc25a3a05248287b855ed46", "_blank");
+    };
+
+    canvas.addEventListener("click", function (e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      if (
+        mouseX / scaleX >= logo.x &&
+        mouseX / scaleX <= logo.x + logo.width &&
+        mouseY / scaleY >= logo.y &&
+        mouseY / scaleY <= logo.y + logo.height
+      ) {
+        window.open(logo.url, "_blank");
+      }
+    });
+
+    gameLoop();
+  </script>
+</body>
+</html>
