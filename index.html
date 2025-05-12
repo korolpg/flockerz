@@ -34,6 +34,25 @@
     #startBtn { top: 45%; }
     #restartBtn { top: 55%; display: none; }
     #buyBtn { top: 65%; display: none; }
+
+    #mobileControls {
+      position: absolute;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      z-index: 3;
+    }
+
+    .mobile-button {
+      font-size: 30px;
+      padding: 10px 25px;
+      margin: 0 30px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid white;
+      border-radius: 10px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -42,19 +61,19 @@
   <button id="restartBtn" class="overlay-button">Restart</button>
   <button id="buyBtn" class="overlay-button">Buy FLOCK</button>
 
+  <div id="mobileControls">
+    <button id="leftBtn" class="mobile-button">◀</button>
+    <button id="rightBtn" class="mobile-button">▶</button>
+  </div>
+
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Base logic dimensions
     const baseWidth = 400;
     const baseHeight = 600;
-
-    // Set canvas to fill screen
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
-    // Scale drawing to maintain logic coordinates
     const scaleX = canvas.width / baseWidth;
     const scaleY = canvas.height / baseHeight;
     ctx.scale(scaleX, scaleY);
@@ -103,6 +122,8 @@
     let scrollOffset = 0;
     let score = 0;
     let jumpCount = 0;
+    let moveLeft = false;
+    let moveRight = false;
 
     function resetGame() {
       player.x = 200;
@@ -153,42 +174,35 @@
     const keys = {};
     window.addEventListener("keydown", e => keys[e.key] = true);
     window.addEventListener("keyup", e => keys[e.key] = false);
-if (
-  typeof DeviceOrientationEvent !== 'undefined' &&
-  typeof DeviceOrientationEvent.requestPermission === 'function'
-) {
-  // iOS 13+
-  DeviceOrientationEvent.requestPermission()
-    .then(permissionState => {
-      if (permissionState === 'granted') {
-        window.addEventListener("deviceorientation", handleOrientation);
-      }
-    })
-    .catch(console.error);
-} else {
-  // Android / десктоп
-  window.addEventListener("deviceorientation", handleOrientation);
-}
 
-function handleOrientation(event) {
-  let tilt = event.gamma;
-  if (tilt !== null && gameStarted && !gameOver) {
-    player.vx = tilt / 3;
-  }
-}
+    // iOS permission for gyro
+    if (
+      typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function"
+    ) {
+      DeviceOrientationEvent.requestPermission()
+        .then(permissionState => {
+          if (permissionState === "granted") {
+            window.addEventListener("deviceorientation", handleOrientation);
+          }
+        })
+        .catch(console.error);
+    } else {
+      window.addEventListener("deviceorientation", handleOrientation);
+    }
 
-    window.addEventListener("deviceorientation", function (event) {
+    function handleOrientation(event) {
       let tilt = event.gamma;
       if (tilt !== null && gameStarted && !gameOver) {
         player.vx = tilt / 3;
       }
-    });
+    }
 
     function update() {
       if (!gameStarted || gameOver) return;
 
-      if (keys["ArrowLeft"]) player.vx = -3;
-      if (keys["ArrowRight"]) player.vx = 3;
+      if (keys["ArrowLeft"] || moveLeft) player.vx = -3;
+      if (keys["ArrowRight"] || moveRight) player.vx = 3;
 
       player.vx *= 0.8;
       player.x += player.vx;
@@ -321,6 +335,12 @@ function handleOrientation(event) {
         window.open(logo.url, "_blank");
       }
     });
+
+    // Mobile button events
+    document.getElementById("leftBtn").addEventListener("touchstart", () => moveLeft = true);
+    document.getElementById("leftBtn").addEventListener("touchend", () => moveLeft = false);
+    document.getElementById("rightBtn").addEventListener("touchstart", () => moveRight = true);
+    document.getElementById("rightBtn").addEventListener("touchend", () => moveRight = false);
 
     gameLoop();
   </script>
